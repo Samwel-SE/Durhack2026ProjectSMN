@@ -1,12 +1,15 @@
 # Durhack2026ProjectSMN
 Our Durhack 2026 Project:
 
-CrackleCrypt will encrypt info by converting info into white noise.
+CrackleCrypt will encrypt a word by converting into a series of coloured lines.
 
-White noise is then combined with a song.
+Encryption:
+React used to convert and draw this image.
+The colour of the line indicates what letter the line is.
+The Steeper the line indicates the position of the letter in the word.
 
-Receiver then gets song, and isolates the white noise in the song.
 
-Receiver then decrypts the isolated white noise. 
-
-White Noise for us is just the crackling of a vinyl player.
+Decrypytion:
+Decryption done using the python OpenCV module.
+Will detect from colour of line what letter the line represents.
+Will detect from steepness of line where abouts that letter is in word position.
