@@ -31,6 +31,8 @@ function StraightLine({ input }) {
     { name: 'z', colorStroke: "#1b041a" }
   ];
 
+  input=input.replaceAll(' ','');
+
   const lines = useMemo(() => {
 
     const generatedLines = [];
@@ -40,7 +42,7 @@ function StraightLine({ input }) {
       const letter = input[i].toLowerCase();
 
       const match = conversion.find(
-        item => item.name === letter
+        item => item.name === letter.toLowerCase()
       );
 
       if (!match) continue;

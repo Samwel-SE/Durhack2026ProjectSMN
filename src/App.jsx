@@ -3,7 +3,7 @@ import StraightLine from "./StraightLine.jsx";
 function App() {
   return(
     <>
-    <StraightLine input="noaaaaronnnnnyouuckk"/>
+    <StraightLine input="This is TheBest App Ever"/>
     </>
   );
 
