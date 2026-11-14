@@ -1,11 +1,26 @@
+ // import javax.sound.sampled.*;
+
 
 public class CrackleCrypt {
 
-public static void main(String args[]){
+    public String convertToBinary(String plaintext){
+        StringBuilder sb = new StringBuilder();
+        
+        for (char c : plaintext.toCharArray()) {
+            sb.append(String.format("%8s", Integer.toBinaryString(c)).replace(' ', '0'));
+        }
+        
+        return sb.toString();
+    }
 
-    System.out.println("hello");
 
-}
+    public static void main(String args[]){
+        
+        CrackleCrypt obj = new CrackleCrypt();
+
+        System.out.println(obj.convertToBinary("alpha"));
+
+    }
 
 }
 
