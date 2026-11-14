@@ -1,9 +1,10 @@
 import StraightLine from "./StraightLine.jsx";
 
-function App() {
+function App({ input }) {
+  
   return(
     <>
-    <StraightLine input="This is TheBest App Ever"/>
+    <StraightLine input={input}/>
     </>
   );
 
