@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 
 function StraightLine({ input }) {
 
@@ -18,7 +18,7 @@ function StraightLine({ input }) {
     { name: 'm', colorStroke: "#ca3c9b" },
     { name: 'n', colorStroke: "#724706" },
     { name: 'o', colorStroke: "#ac4408" },
-    { name: 'p', colorStroke: "#f710bd" },
+    { name: 'p', colorStroke: "#e710bc" },
     { name: 'q', colorStroke: "#7c2138" },
     { name: 'r', colorStroke: "#041f05" },
     { name: 's', colorStroke: "#bbdf3c" },
@@ -31,86 +31,91 @@ function StraightLine({ input }) {
     { name: 'z', colorStroke: "#1b041a" }
   ];
 
-  input=input.replaceAll(' ','');
+  const cleanInput = input.replaceAll(' ', '');
 
-  const lines = useMemo(() => {
+  const svgContent = useMemo(() => {
 
     const generatedLines = [];
 
-    for (let i = 0; i < input.length; i++) {
+    for (let i = 0; i < cleanInput.length; i++) {
 
-      const letter = input[i].toLowerCase();
+      const letter = cleanInput[i].toLowerCase();
 
       const match = conversion.find(
-        item => item.name === letter.toLowerCase()
+        item => item.name === letter
       );
 
       if (!match) continue;
 
-      // Original letter determines the angle
       const angle = i * 10;
-
       const radians = angle * Math.PI / 180;
 
-      // Each letter gets a random number of copies
       const repetitions = Math.floor(Math.random() * 30) + 12;
 
-      // Generate multiple lines for each letter
       for (let j = 0; j < repetitions; j++) {
 
-        // Random starting position
         const x = Math.random() * 1000;
         const y = Math.random() * 700;
 
-      // Random line length
-      const length = 25 + Math.random() * 125;
+        const length = 25 + Math.random() * 125;
 
-      // Calculate angle
-      const radians = angle * Math.PI / 180;
+        const x2 = x - Math.sin(radians) * length;
+        const y2 = y + Math.cos(radians) * length;
 
-     // Calculate ending position (tilt left)
-     const x2 = x - Math.sin(radians) * length;
-    const y2 = y + Math.cos(radians) * length;
+        const thickness = 2 + Math.random() * 6;
 
-        // Slight variation in line thickness
-        const thickness = 2 + Math.random() * 6 ;
-
-        generatedLines.push(
+        generatedLines.push(`
           <line
-            key={`${i}-${j}`}
-            x1={x}
-            y1={y}
-            x2={x2}
-            y2={y2}
-            stroke={match.colorStroke}
-            strokeWidth={thickness}
-            strokeLinecap="round"
+            x1="${x}"
+            y1="${y}"
+            x2="${x2}"
+            y2="${y2}"
+            stroke="${match.colorStroke}"
+            stroke-width="${thickness}"
+            stroke-linecap="round"
           />
-        );
-
+        `);
       }
     }
 
-    return generatedLines;
+    return `
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="1000"
+        height="700"
+        viewBox="0 0 1000 700"
+      >
+        <rect width="1000" height="700" fill="#111111"/>
+        ${generatedLines.join("")}
+      </svg>
+    `;
 
-  }, [input]);
+  }, [cleanInput]);
 
-  return (
-    <svg
-      width="100%"
-      height="100%"
-      viewBox="0 0 1000 700"
-      preserveAspectRatio="xMidYMid slice"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "#111111",
-        display: "block"
-      }}
-    >
-      {lines}
-    </svg>
-  );
+    useEffect(() => {
+
+    if (!input) return;
+
+    const blob = new Blob(
+      [svgContent],
+      { type: "image/svg+xml;charset=utf-8" }
+    );
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "encrypted-image.svg";
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+  }, [svgContent, input]);
+
+  return null;
 }
 
 export default StraightLine;
