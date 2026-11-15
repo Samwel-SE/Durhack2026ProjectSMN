@@ -223,7 +223,7 @@ function StraightLine({ input, password, requestId }) {
 
         const repetitions = Math.floor(
 
-          Math.random() * 30
+          Math.random() * 2
 
         ) + 12;
 
