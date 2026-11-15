@@ -1,6 +1,16 @@
+
 import xml.etree.ElementTree as ET
 import math
+import os
 from collections import defaultdict
+from getpass import getpass
+from pathlib import Path
+
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.exceptions import InvalidTag
+
 
 colours_dictionary = {
     "#e70606": 'a',
@@ -28,61 +38,183 @@ colours_dictionary = {
     "#32a797": 'w',
     "#8a1c1c": 'x',
     "#80919b": 'y',
-    "#1b041a": 'z'
+    "#1b041a": 'z',
+
+    # Hexadecimal digits
+    "#a1a31a": '0',
+    "#3ca0a3": '1',
+    "#adade0": '2',
+    "#9e3c898c": '3',
+    "#4c00ff": '4',
+    "#7c637c6b": '5',
+    "#8a614688": '6',
+    "#884c71" : '7',
+    "#4fbebe": '8',
+    "#818136": '9'
 }
 
+
 def normalise_hex(hex_str):
+
     hex_str = hex_str.strip().lower()
+
     if not hex_str.startswith('#'):
         hex_str = '#' + hex_str
+
     if len(hex_str) == 4:
-        hex_str = '#' + hex_str[1]*2 + hex_str[2]*2 + hex_str[3]*2
+        hex_str = '#' + ''.join(
+            c * 2 for c in hex_str[1:]
+        )
+
     return hex_str
 
-tree = ET.parse("encrypted-image.svg")
-root = tree.getroot()
 
-# Group lines by stroke colour, collect angles
-colour_angles = defaultdict(list)
+def decrypt_svg(filename):
 
-for elem in root.iter():
-    tag = elem.tag.split('}')[-1]
-    if tag != 'line':
-        continue
+    # Read SVG
+    tree = ET.parse(filename)
+    root = tree.getroot()
 
-    stroke = elem.get('stroke', '')
-    if not stroke:
-        continue
+    # Read encryption metadata
+    salt_hex = root.get("data-salt")
+    iv_hex = root.get("data-iv")
 
-    hex_colour = normalise_hex(stroke)
+    if not salt_hex or not iv_hex:
+        raise ValueError("SVG is missing encryption metadata.")
 
-    # Skip near-black background
-    r, g, b = int(hex_colour[1:3],16), int(hex_colour[3:5],16), int(hex_colour[5:7],16)
-    if (r + g + b) / 3 < 30:
-        continue
+    salt = bytes.fromhex(salt_hex)
+    iv = bytes.fromhex(iv_hex)
 
-    x1, y1 = float(elem.get('x1')), float(elem.get('y1'))
-    x2, y2 = float(elem.get('x2')), float(elem.get('y2'))
+    if len(salt) != 16 or len(iv) != 12:
+        raise ValueError("Invalid salt or IV length.")
 
-    # Angle in degrees (0° = horizontal right, 90° = vertical down)
-    angle = math.degrees(math.atan2(y2 - y1, x2 - x1))
+    # Group lines by angle
+    angle_groups = defaultdict(list)
 
-    colour_angles[hex_colour].append(angle)
+    for elem in root.iter():
 
-# Compute average angle per colour group
-results = []
-for hex_colour, angles in colour_angles.items():
-    avg_angle = sum(angles) / len(angles)
-    letter = colours_dictionary.get(hex_colour, '?')
-    results.append((avg_angle, letter, hex_colour, len(angles)))
+        tag = elem.tag.split('}')[-1]
 
-# Sort by angle → this gives the word order
-results.sort(key=lambda r: r[0])
+        if tag != 'line':
+            continue
 
-decoded = ''.join(r[1] for r in results)
-print(f"Decoded: {decoded}\n")
+        stroke = elem.get('stroke', '')
 
-print(f"{'Pos':<5} {'Letter':<7} {'Avg Angle':<12} {'Lines':<7} {'Colour'}")
-print("─" * 45)
-for i, (angle, letter, colour, count) in enumerate(results, 1):
-    print(f"{i:<5} {letter:<7} {angle:<12.2f} {count:<7} {colour}")   
+        if not stroke:
+            continue
+
+        hex_colour = normalise_hex(stroke)
+
+        if hex_colour not in colours_dictionary:
+            continue
+
+        x1 = float(elem.get('x1'))
+        y1 = float(elem.get('y1'))
+        x2 = float(elem.get('x2'))
+        y2 = float(elem.get('y2'))
+
+        angle = math.degrees(
+            math.atan2(y2 - y1, x2 - x1)
+        ) % 360
+
+        # All lines for one character share the same angle.
+        angle_key = round(angle, 4)
+
+        angle_groups[angle_key].append(hex_colour)
+
+    if not angle_groups:
+        raise ValueError("No encrypted lines found in SVG.")
+
+    # Recover each character using its angle group
+    results = []
+
+    for angle, colours in angle_groups.items():
+
+        # Find the most common colour in this angle group
+        colour_counts = defaultdict(int)
+
+        for colour in colours:
+            colour_counts[colour] += 1
+
+        most_common_colour = max(
+            colour_counts,
+            key=colour_counts.get
+        )
+
+        character = colours_dictionary[most_common_colour]
+
+        results.append((angle, character, most_common_colour))
+
+    # Sort characters by angle
+    results.sort(key=lambda item: item[0])
+
+    encrypted_hex = ''.join(
+        item[1] for item in results
+    )
+
+    print("\nRecovered hexadecimal:")
+    print(encrypted_hex)
+
+    if len(encrypted_hex) % 2 != 0:
+        raise ValueError("Invalid hexadecimal length.")
+
+    # Convert hexadecimal into bytes
+    encrypted_data = bytes.fromhex(encrypted_hex)
+
+    # Ask for password
+    password = getpass("\nEnter decryption password: ")
+
+    # Derive AES-256 key
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=310000
+    )
+
+    key = kdf.derive(password.encode("utf-8"))
+
+    # Decrypt using AES-256-GCM
+    aes = AESGCM(key)
+
+    try:
+
+        decrypted_data = aes.decrypt(
+            iv,
+            encrypted_data,
+            None
+        )
+
+        decoded_message = decrypted_data.decode("utf-8")
+
+        print("Message has been decrypted")
+
+        print("\nOriginal message:")
+        print(decoded_message)
+
+        
+
+        return decoded_message
+
+    except InvalidTag:
+
+        print("\nDECRYPTION FAILED")
+        print("Incorrect password or corrupted SVG.")
+
+        return None
+
+
+if __name__ == "__main__":
+
+    filename = "encrypted-image.svg"
+
+    if not os.path.isfile(filename):
+        print("\nFile not found:", filename)
+
+    else:
+
+        try:
+            decrypt_svg(filename)
+
+        except Exception as error:
+            print("\nDecoder error:", error)

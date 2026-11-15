@@ -1,25 +1,112 @@
+
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>durhack2026</title>
-  </head>
 
-  <body>
-    <div className="TitleText"><h1>My Applications</h1></div>
-  
+<head>
+  <meta charset="UTF-8" />
 
-  <form id="encryptionForm">
-    <label for="input">Encode your String:</label>
-    <input type="text" id="input" name="input" required>
-    <button type="submit">Submit String</button>
-  </form>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>StraightLine Encryption</title>
+</head>
+
+<body>
+
+  <div class="TitleText">
+    <h1>StraightLine Encryption</h1>
+    <p>Turn encrypted messages into visual artwork.</p>
+  </div>
+
+  <div class="TextBox">
+
+    <!-- ENCRYPTION -->
+
+    <section class="EncryptBox">
+
+      <h2>Encrypt a message</h2>
+
+      <form id="encryptionForm">
+
+        <label for="input">Encode your String:</label>
+
+        <input
+          type="text"
+          id="input"
+          name="input"
+          required
+        />
+
+        <label for="password">Encryption Password:</label>
+
+        <input
+          type="password"
+          id="password"
+          name="password"
+          required
+        />
+
+        <button type="submit">
+          Encrypt String
+        </button>
+
+      </form>
+
+    </section>
+
+
+    <!-- DECRYPTION -->
+
+    <section class="DecryptBox">
+
+      <h2>Decrypt an SVG</h2>
+
+      <form id="decryptForm">
+
+        <label>Upload your encrypted SVG:</label>
+
+        <div id="dropZone" class="DropZone">
+
+          <p>Drop your encrypted SVG here</p>
+
+          <p>or select a file</p>
+
+          <input
+            type="file"
+            id="svgFile"
+            accept=".svg,image/svg+xml"
+            required
+          />
+
+          <p id="selectedFile"></p>
+
+        </div>
+
+        <label for="decryptPassword">
+          Decryption Password:
+        </label>
+
+        <input
+          type="password"
+          id="decryptPassword"
+          required
+        />
+
+        <button type="submit">
+          Decrypt SVG
+        </button>
+
+      </form>
+
+      <div id="decryptResult" aria-live="polite"></div>
+
+    </section>
+
+  </div>
 
   <div id="root"></div>
 
   <script type="module" src="/src/main.jsx"></script>
+
 </body>
 
 </html>

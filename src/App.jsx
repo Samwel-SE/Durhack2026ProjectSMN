@@ -1,13 +1,17 @@
-import StraightLine from "./StraightLine.jsx";
+import StraightLine from './StraightLine.jsx';
 
-function App({ input }) {
-  
-  return(
+function App({ input, password, requestId }) {
+
+  return (
     <>
-    <StraightLine input={input}/>
+      <StraightLine
+        input={input}
+        password={password}
+        requestId={requestId}
+      />
     </>
   );
 
 }
 
-export default App
+export default App;
