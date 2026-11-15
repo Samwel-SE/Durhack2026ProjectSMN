@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
-import re
+import math
+from collections import defaultdict
 
 colours_dictionary = {
     "#e70606": 'a',
@@ -27,82 +28,61 @@ colours_dictionary = {
     "#32a797": 'w',
     "#8a1c1c": 'x',
     "#80919b": 'y',
-    "#1b041a": 'z',
+    "#1b041a": 'z'
 }
 
-def get_position(elem):
-    """Extract (cx, cy) from transform, x/y, or path data."""
-    # Try transform="translate(x, y)"
-    transform = elem.get('transform', '')
-    m = re.search(r'translate\(\s*([\d.-]+)\s*[,]\s*([\d.-]+)', transform)
-    if m:
-        return float(m.group(1)), float(m.group(2))
-
-    # Try x, y attributes
-    x = elem.get('x')
-    y = elem.get('y')
-    if x is not None and y is not None:
-        return float(x), float(y)
-
-    # Fallback: parse path 'd' for first M command
-    d = elem.get('d', '')
-    m = re.search(r'M\s*([\d.-]+)\s*[,]\s*([\d.-]+)', d)
-    if m:
-        return float(m.group(1)), float(m.group(2))
-
-    return 0.0, 0.0
-
 def normalise_hex(hex_str):
-    """Normalise to lowercase #rrggbb."""
     hex_str = hex_str.strip().lower()
     if not hex_str.startswith('#'):
         hex_str = '#' + hex_str
-    # Handle #rgb shorthand
     if len(hex_str) == 4:
         hex_str = '#' + hex_str[1]*2 + hex_str[2]*2 + hex_str[3]*2
     return hex_str
 
-tree = ET.parse("encryptedInfo.svg")
+tree = ET.parse("encrypted-image.svg")
 root = tree.getroot()
 
-# SVG namespace
-ns = {'svg': 'http://www.w3.org/2000/svg'}
+# Group lines by stroke colour, collect angles
+colour_angles = defaultdict(list)
 
-results = []
 for elem in root.iter():
-    # Check fill attribute
-    fill = elem.get('fill', '')
-    if not fill:
-        # Check style="fill:#xxxxxx"
-        style = elem.get('style', '')
-        m = re.search(r'fill\s*:\s*(#[0-9a-fA-F]{3,6})', style)
-        if m:
-            fill = m.group(1)
-        else:
-            continue
-
-    hex_colour = normalise_hex(fill)
-
-    # Skip background/none
-    if hex_colour in ('#ffffff', '#000000', 'none'):
+    tag = elem.tag.split('}')[-1]
+    if tag != 'line':
         continue
 
-    letter = colours_dictionary.get(hex_colour)
-    if letter is None:
-        # Try case-insensitive match
-        letter = colours_dictionary.get(hex_colour.lower())
+    stroke = elem.get('stroke', '')
+    if not stroke:
+        continue
 
-    cx, cy = get_position(elem)
-    results.append((cx, cy, letter or '?', hex_colour))
+    hex_colour = normalise_hex(stroke)
 
-# Sort: group into rows by y, then left-to-right
-row_tolerance = 30
-results.sort(key=lambda r: (round(r[1] / row_tolerance), r[0]))
+    # Skip near-black background
+    r, g, b = int(hex_colour[1:3],16), int(hex_colour[3:5],16), int(hex_colour[5:7],16)
+    if (r + g + b) / 3 < 30:
+        continue
 
-decoded = ''.join(r[2] for r in results)
+    x1, y1 = float(elem.get('x1')), float(elem.get('y1'))
+    x2, y2 = float(elem.get('x2')), float(elem.get('y2'))
+
+    # Angle in degrees (0° = horizontal right, 90° = vertical down)
+    angle = math.degrees(math.atan2(y2 - y1, x2 - x1))
+
+    colour_angles[hex_colour].append(angle)
+
+# Compute average angle per colour group
+results = []
+for hex_colour, angles in colour_angles.items():
+    avg_angle = sum(angles) / len(angles)
+    letter = colours_dictionary.get(hex_colour, '?')
+    results.append((avg_angle, letter, hex_colour, len(angles)))
+
+# Sort by angle → this gives the word order
+results.sort(key=lambda r: r[0])
+
+decoded = ''.join(r[1] for r in results)
 print(f"Decoded: {decoded}\n")
 
-print(f"{'Letter':<7} {'Pos':<14} {'Colour'}")
-print("─" * 40)
-for cx, cy, letter, colour in results:
-    print(f"{letter:<7} ({cx:.0f},{cy:.0f}){'':<6} {colour}")   
+print(f"{'Pos':<5} {'Letter':<7} {'Avg Angle':<12} {'Lines':<7} {'Colour'}")
+print("─" * 45)
+for i, (angle, letter, colour, count) in enumerate(results, 1):
+    print(f"{i:<5} {letter:<7} {angle:<12.2f} {count:<7} {colour}")   
